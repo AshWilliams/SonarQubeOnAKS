@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonar-deployment
+  labels:
+    app: sonar-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sonar-deployment
+  template:
+    metadata:
+      labels:
+        app: sonar-deployment
+    spec:
+      terminationGracePeriodSeconds: 15
+      initContainers:
+      - name: fix-the-volume-permission
+        image: busybox
+        command:
+        - sh
+        - -c
+        - chown -R 1000:1000 /opt/sonarqube/extensions
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: sonarqube-data
+          mountPath: /opt/sonarqube/extensions
+      - name: fix-the-volume-permission1
+        image: busybox
+        command:
+        - sh
+        - -c
+        - chown -R 1000:1000 /opt/sonarqube/data
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: sonarqube-data
+          mountPath: /opt/sonarqube/data
+      - name: fix-the-sonarqube-memory
+        image: busybox
+        command:
+        - sysctl
+        - -w
+        - vm.max_map_count=262144
+        securityContext:
+          privileged: true
+      containers:
+      - name: sonarqube
+        image: sonarqube
+        ports:
+        - name: sonarqube
+          containerPort: 9000
+        env:
+        - name: SONARQUBE_JDBC_USERNAME
+          value: asdf2019
+        - name: SONARQUBE_JDBC_PASSWORD
+          value: "asdf2019"
+        - name: SONARQUBE_JDBC_URL 
+          value: "jdbc:sqlserver://asdf2019.database.windows.net:1433;database=SonarDB;user=nope@asdf2019;password=asdf2019;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;"
+        volumeMounts:
+         - name: sonarqube-data
+           mountPath: /opt/sonarqube/extensions
+           subPath: extensions
+         - name: sonarqube-data
+           mountPath: /opt/sonarqube/data
+           subPath: data
+      volumes:
+      - name: sonarqube-data
+        persistentVolumeClaim:
+           claimName: sonar-data-claim
